@@ -241,5 +241,21 @@ namespace UnitTests
 
             HasValue(new DateTime(2016, 10, 09), dateTimeVal);
         }
+
+        [Test]
+        public void HardParsing()
+        {
+            string skon = "DifficultTokens: \"_[{]}:;,\", _: 1,__:[\"]\",],";
+
+            SKONObject skonObj = SKON.Parse(skon);
+
+            Assert.IsTrue(skonObj.ContainsKey("DifficultTokens"));
+            Assert.IsTrue(skonObj.ContainsKey("_"));
+            Assert.IsTrue(skonObj.ContainsKey("__"));
+
+            Assert.AreEqual("_[{]}:;,", skonObj["DifficultTokens"].String);
+            Assert.AreEqual(1, skonObj["_"].Int);
+            Assert.AreEqual("]", skonObj["__"][0].String);
+        }
     }
 }

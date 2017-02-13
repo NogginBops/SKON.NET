@@ -112,7 +112,7 @@ namespace SKON
 
             if (parser.errors.count > 0)
             {
-                throw new FormatException(string.Format("Could not parse file! Got {0} errors!"));
+                throw new FormatException(string.Format("Could not parse file! Got {0} errors!", parser.errors.count));
             }
 
             return parser.data;
