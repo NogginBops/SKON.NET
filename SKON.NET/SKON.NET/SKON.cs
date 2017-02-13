@@ -17,6 +17,8 @@ namespace SKON
     using Internal.Utils;
     using System.Reflection;
 
+    using Serialization;
+
     /// <summary>
     /// Central class for all SKON related functions.
     /// </summary> 
@@ -116,6 +118,20 @@ namespace SKON
             return parser.data;
         }
         
+        public static string Serialize<T>(T obj)
+        {
+            Type objType = obj.GetType();
+
+            SKONObjectAttribute objAttrib = (SKONObjectAttribute) Attribute.GetCustomAttribute(objType, typeof(SKONObjectAttribute));
+            
+            return null;
+        }
+
+        public static T Deserialize<T>(string str)
+        {
+            return default(T);
+        }
+
         /// <summary>
         /// Writes a SKONObject to a file. This will overwrite the current content of the file.
         /// </summary>

@@ -52,6 +52,8 @@
   <ItemGroup>
     <Compile Include="ParserTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Serialization\Object\Book.cs" />
+    <Compile Include="Serialization\Object\Person.cs" />
     <Compile Include="SKEMAObjectTests.cs" />
     <Compile Include="SKONObjectTests.cs" />
     <Compile Include="UtilsTests.cs" />
