@@ -16,6 +16,14 @@ namespace SKON
     using Internal;
     using Internal.Utils;
     using System.Reflection;
+    using System.Collections.Generic;
+
+    public struct SKONMetadata
+    {
+        public int LanguageVersion { get; internal set; }
+        public string DocuemntVersion { get; internal set; }
+        public string SKEMA { get; internal set; }
+    }
 
     using Serialization;
 
@@ -44,24 +52,36 @@ namespace SKON
         /// </summary>
         internal static string IndentString => UseTabs ? IndentTab : IndentSpaces;
 
+        public static SKONObject LoadFile(string path, TextWriter errorStream = null)
+        {
+            SKONMetadata metadata;
+            return LoadFile(path, out metadata, errorStream);
+        }
+
         /// <summary>
         /// Loads a text file as a SKON Map.
         /// </summary>
         /// <param name="path">Full FilePath to the SKON text file.</param>
         /// <param name="errorStream">The TextWriter to write error messages to.</param>
         /// <returns>The root map containing all SKONObjects.</returns>
-        public static SKONObject LoadFile(string path, TextWriter errorStream = null)
+        public static SKONObject LoadFile(string path, out SKONMetadata metadata, TextWriter errorStream = null)
         {
             if (File.Exists(path))
             {
                 Scanner sc = new Scanner(path);
 
-                return Parse(sc, errorStream);
+                return Parse(sc, out metadata, errorStream);
             }
             else
             {
                 throw new FileNotFoundException("File not found!", path);
             }
+        }
+
+        public static SKONObject Parse(string skon, TextWriter errorStream = null)
+        {
+            SKONMetadata metadata;
+            return Parse(skon, out metadata, errorStream);
         }
 
         /// <summary>
@@ -70,14 +90,20 @@ namespace SKON
         /// <param name="skon">The SKON data string.</param>
         /// <param name="errorStream">The TextWriter to write error messages to.</param>
         /// <returns>The newly created SKONObject.</returns>
-        public static SKONObject Parse(string skon, TextWriter errorStream = null)
+        public static SKONObject Parse(string skon, out SKONMetadata metadata, TextWriter errorStream = null)
         {
             using (MemoryStream stream = ParserUtils.GenerateStreamFromString(skon))
             {
                 Scanner sc = new Scanner(stream);
                 
-                return Parse(sc, errorStream);
+                return Parse(sc, out metadata, errorStream);
             }
+        }
+
+        public static SKONObject Parse(Stream stream, TextWriter errorStream = null)
+        {
+            SKONMetadata metadata;
+            return Parse(stream, out metadata, errorStream);
         }
 
         /// <summary>
@@ -86,11 +112,11 @@ namespace SKON
         /// <param name="stream">The SKON data stream.</param>
         /// <param name="errorStream">The TextWriter to write error messages to.</param>
         /// <returns></returns>
-        public static SKONObject Parse(Stream stream, TextWriter errorStream = null)
+        public static SKONObject Parse(Stream stream, out SKONMetadata metadata, TextWriter errorStream = null)
         {
             Scanner sc = new Scanner(stream);
 
-            return Parse(sc, errorStream);
+            return Parse(sc, out metadata, errorStream);
         }
 
         /// <summary>
@@ -99,7 +125,7 @@ namespace SKON
         /// <param name="sc"></param>
         /// <param name="errorStream"></param>
         /// <returns></returns>
-        private static SKONObject Parse(Scanner sc, TextWriter errorStream)
+        private static SKONObject Parse(Scanner sc, out SKONMetadata metadata, TextWriter errorStream)
         {
             Parser parser = new Parser(sc);
 
@@ -107,13 +133,15 @@ namespace SKON
             {
                 parser.errors.errorStream = errorStream;
             }
-
+            
             parser.Parse();
 
             if (parser.errors.count > 0)
             {
                 throw new FormatException(string.Format("Could not parse file! Got {0} errors!", parser.errors.count));
             }
+
+            metadata = parser.metadata;
 
             return parser.data;
         }
@@ -154,6 +182,11 @@ namespace SKON
                 throw new ArgumentException("SKONObject to write must be of type map!");
             }
 
+            if (ContainsLoops(obj))
+            {
+                throw new ArgumentException("Could not write SKONObject due to recursive references!");
+            }
+
             StringBuilder sb = new StringBuilder();
 
             foreach (string key in obj.Keys)
@@ -164,6 +197,57 @@ namespace SKON
             return sb.ToString();
         }
         
+        public static bool ContainsLoops(SKONObject obj)
+        {
+            // This should be a HashMap but .NET 2.0 does not have this data type
+            Dictionary<SKONObject, bool> contains = new Dictionary<SKONObject, bool>();
+
+            return ContainsLoopsInternal(obj, contains);
+        }
+
+        private static bool ContainsLoopsInternal(SKONObject obj, Dictionary<SKONObject, bool> contains)
+        {
+            if (contains.ContainsKey(obj))
+            {
+                return true;
+            }
+
+            contains.Add(obj, true);
+
+            switch (obj.Type)
+            {
+                case SKONValueType.EMPTY:
+                case SKONValueType.STRING:
+                case SKONValueType.INTEGER:
+                case SKONValueType.FLOAT:
+                case SKONValueType.BOOLEAN:
+                case SKONValueType.DATETIME:
+                    return false;
+                case SKONValueType.MAP:
+                    foreach (var key in obj.Keys)
+                    {
+                        if (ContainsLoopsInternal(obj[key], contains))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                case SKONValueType.ARRAY:
+                    foreach (var element in obj.Values)
+                    {
+                        if (ContainsLoopsInternal(element, contains))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
         /// <summary>
         /// Writes a SKONObject value.
         /// </summary>
